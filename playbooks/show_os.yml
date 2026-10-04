@@ -1,0 +1,8 @@
+---
+- name: Show the os version from facts on all hosts
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Display the OS version
+      ansible.builtin.debug:
+        msg: "The OS version on {{ inventory_hostname }} is {{ ansible_facts['os_family'] }} {{ ansible_facts['distribution_version'] }}"

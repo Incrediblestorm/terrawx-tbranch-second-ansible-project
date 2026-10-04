@@ -1,0 +1,37 @@
+# Tells central-awx to regenerate and apply this project's AWX templates:
+#   merge into main (push to main)        -> project-main    (test, then prod)
+#   push to or delete of a feature/* branch -> project-feature (test only)
+# Runs on GitHub's hosted runners; it only sends the signal.
+name: trigger-central-awx
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  delete:
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'feature/'))
+    steps:
+      - name: Dispatch to central-awx
+        env:
+          TOKEN: ${{ secrets.CENTRAL_AWX_DISPATCH_TOKEN }}
+          CENTRAL_AWX_REPO: Incrediblestorm/terrawx-tbranch-central-awx
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
+          PROJECT: ${{ github.event.repository.name }}
+        run: |
+          if [ "$EVENT" = push ] && [ "$BRANCH" = main ]; then type=project-main; else type=project-feature; fi
+          payload=$(jq -nc --arg t "$type" --arg p "$PROJECT" --arg b "$BRANCH" --arg e "$EVENT" \
+            '{event_type: $t, client_payload: {project: $p, branch: $b, event: $e}}')
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${CENTRAL_AWX_REPO}/dispatches" \
+            -d "$payload"
+          echo "sent $type for $PROJECT $BRANCH ($EVENT)"
