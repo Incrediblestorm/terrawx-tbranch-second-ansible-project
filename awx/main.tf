@@ -10,15 +10,3 @@ module "show_os" {
   name     = "show_os"
   playbook = "playbooks/show_os.yml"
 }
-
-# One-time migration from the previous layout (templates defined directly in
-# this module); safe to delete once it has been applied everywhere.
-moved {
-  from = awx_job_template.show_os
-  to   = module.show_os.awx_job_template.this
-}
-
-moved {
-  from = awx_job_template_credential.show_os
-  to   = module.show_os.awx_job_template_credential.this
-}
