@@ -2,6 +2,11 @@
 #   merge into main (push to main)        -> project-main    (test, then prod)
 #   push to or delete of a feature/* branch -> project-feature (test only)
 # Runs on GitHub's hosted runners; it only sends the signal.
+#
+# Needs, in this repo's settings:
+#   variable CENTRAL_AWX_REPO           owner/name of the central repo
+#   secret   CENTRAL_AWX_DISPATCH_TOKEN fine-grained PAT, Contents read/write
+#                                       on the central repo
 name: trigger-central-awx
 
 on:
@@ -21,11 +26,12 @@ jobs:
       - name: Dispatch to central-awx
         env:
           TOKEN: ${{ secrets.CENTRAL_AWX_DISPATCH_TOKEN }}
-          CENTRAL_AWX_REPO: Incrediblestorm/terrawx-tbranch-central-awx
+          CENTRAL_AWX_REPO: ${{ vars.CENTRAL_AWX_REPO }}
           EVENT: ${{ github.event_name }}
           BRANCH: ${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
           PROJECT: ${{ github.event.repository.name }}
         run: |
+          [ -n "$CENTRAL_AWX_REPO" ] || { echo "::error::Set the CENTRAL_AWX_REPO repository variable"; exit 1; }
           if [ "$EVENT" = push ] && [ "$BRANCH" = main ]; then type=project-main; else type=project-feature; fi
           payload=$(jq -nc --arg t "$type" --arg p "$PROJECT" --arg b "$BRANCH" --arg e "$EVENT" \
             '{event_type: $t, client_payload: {project: $p, branch: $b, event: $e}}')
